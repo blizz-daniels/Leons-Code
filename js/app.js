@@ -30,7 +30,7 @@ const elements = {
   restoreSession: document.querySelector("#restore-session-setting"),
 };
 
-const savedSettings = readStoredJson(SETTINGS_KEY, {});
+const savedSettings = readStoredJson(SETTINGS_KEY, {}) || {};
 const savedSession = savedSettings.restoreSession === false ? null : readStoredJson(SESSION_KEY, null);
 const projectStore = createLocalProjectStore();
 let currentProjectId = savedSession?.projectId || null;

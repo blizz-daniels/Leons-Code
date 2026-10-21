@@ -3,8 +3,10 @@ export function formatTimestamp(date = new Date()) {
 }
 
 export function safeJsonParse(value, fallback = null) {
+  if (typeof value !== "string" || !value.trim()) return fallback;
   try {
-    return JSON.parse(value);
+    const parsed = JSON.parse(value);
+    return parsed ?? fallback;
   } catch {
     return fallback;
   }
