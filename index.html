@@ -233,14 +233,22 @@
     <p id="startup-notice" class="startup-notice" role="alert" hidden></p>
     <noscript><p class="startup-notice">JavaLab needs JavaScript enabled. Open this page through <code>http://localhost/javalab/</code>, not as a file.</p></noscript>
     <script>
+      window.__javaLabStartupError = "";
+      window.addEventListener("error", (event) => {
+        window.__javaLabStartupError = String(event.error?.message || event.message || "Unknown startup error");
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        window.__javaLabStartupError = String(event.reason?.message || event.reason || "Unhandled startup error");
+      });
       window.setTimeout(() => {
         if (window.__javaLabStarted) return;
         const notice = document.querySelector("#startup-notice");
         notice.hidden = false;
-        notice.textContent = "JavaLab did not start. Open http://localhost/javalab/ (not a file or editor preview), then refresh the page.";
+        const detail = window.__javaLabStartupError ? ` Error: ${window.__javaLabStartupError}` : "";
+        notice.textContent = `JavaLab did not start.${detail} Open http://localhost/javalab/ (not a file or editor preview), then refresh the page.`;
       }, 2000);
     </script>
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js?v=0.6.2"></script>
   </body>
 </html>
 

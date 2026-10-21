@@ -11,6 +11,6 @@ test("GitHub Pages workflow publishes the static project root", async () => {
   assert.match(workflow, /actions\/upload-pages-artifact@v3/);
   assert.match(workflow, /path: \./);
   assert.match(workflow, /actions\/deploy-pages@v4/);
-  assert.match(page, /<script type="module" src="js\/app\.js"><\/script>/);
+  assert.match(page, /<script type="module" src="js\/app\.js\?v=0\.6\.2"><\/script>/);
   assert.doesNotMatch(page, /(?:src|href)="\/(?:js|css)\//);
 });
