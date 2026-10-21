@@ -10,7 +10,8 @@ import {
   typeFromReference,
 } from "../runtime/java-types.js";
 
-const BUILTIN_CLASSES = new Set(["Object", "String", "Math", "System", "Scanner", "Exception", "RuntimeException"]);
+const BUILTIN_CLASSES = new Set(["Object", "String", "Math", "System", "Scanner", "Exception", "RuntimeException", "IllegalArgumentException", "ArithmeticException", "InputMismatchException"]);
+const SCANNER_RETURN_TYPES = Object.freeze({ next: JAVA_TYPES.STRING, nextLine: JAVA_TYPES.STRING, nextInt: JAVA_TYPES.INT, nextLong: JAVA_TYPES.LONG, nextDouble: JAVA_TYPES.DOUBLE, nextFloat: JAVA_TYPES.FLOAT, nextBoolean: JAVA_TYPES.BOOLEAN, hasNext: JAVA_TYPES.BOOLEAN, close: JAVA_TYPES.VOID });
 
 export function analyze(ast) {
   return new SemanticAnalyzer(ast).analyze();
@@ -89,7 +90,8 @@ export class SemanticAnalyzer {
     this.pushScope();
     for (const declarator of member.declarators) {
       const targetType = arrayType(type, declarator.arrayDimensions);
-      if (declarator.initializer) this.ensureAssignable(targetType, this.expressionType(declarator.initializer), declarator.initializer, `Cannot assign value to field '${declarator.name}'.`);
+      if (declarator.initializer?.type === "ArrayInitializer") this.checkArrayInitializer(targetType, declarator.initializer);
+      else if (declarator.initializer) this.ensureAssignable(targetType, this.expressionType(declarator.initializer), declarator.initializer, `Cannot assign value to field '${declarator.name}'.`);
     }
     this.popScope();
   }
@@ -183,8 +185,21 @@ export class SemanticAnalyzer {
     this.checkKnownType(declaredType, node.variableType);
     for (const declarator of node.declarators) {
       const type = arrayType(declaredType, declarator.arrayDimensions);
-      if (declarator.initializer) this.ensureAssignable(type, this.expressionType(declarator.initializer), declarator.initializer, `Cannot assign value to '${declarator.name}'.`);
+      if (declarator.initializer?.type === "ArrayInitializer") this.checkArrayInitializer(type, declarator.initializer);
+      else if (declarator.initializer) this.ensureAssignable(type, this.expressionType(declarator.initializer), declarator.initializer, `Cannot assign value to '${declarator.name}'.`);
       this.declare(declarator.name, type, declarator);
+    }
+  }
+
+  checkArrayInitializer(targetType, initializer) {
+    if (!isArrayType(targetType)) {
+      this.error(initializer, "SEM_EXPECTED_ARRAY", "An array initializer requires an array declaration.");
+      return;
+    }
+    const expectedElementType = elementTypeOf(targetType);
+    for (const element of initializer.elements) {
+      if (element.type === "ArrayInitializer" && isArrayType(expectedElementType)) this.checkArrayInitializer(expectedElementType, element);
+      else this.ensureAssignable(expectedElementType, this.expressionType(element), element, "Array element is not compatible with the declared type.");
     }
   }
 
@@ -311,9 +326,13 @@ export class SemanticAnalyzer {
     const argumentTypes = expression.arguments.map((argument) => this.expressionType(argument));
     if (["System.out.print", "System.out.println", "System.err.print", "System.err.println"].includes(path)) return JAVA_TYPES.VOID;
     if (path.startsWith("Math.")) return JAVA_TYPES.DOUBLE;
-    if (expression.callee.type === "MemberExpression" && expression.callee.property === "equals") return JAVA_TYPES.BOOLEAN;
-    if (expression.callee.type === "MemberExpression" && ["length", "charAt", "substring", "toUpperCase", "toLowerCase", "contains"].includes(expression.callee.property)) {
-      return ({ length: JAVA_TYPES.INT, charAt: JAVA_TYPES.CHAR, substring: JAVA_TYPES.STRING, toUpperCase: JAVA_TYPES.STRING, toLowerCase: JAVA_TYPES.STRING, contains: JAVA_TYPES.BOOLEAN })[expression.callee.property];
+    if (expression.callee.type === "MemberExpression") {
+      const receiverType = this.expressionType(expression.callee.object);
+      if (receiverType === "Scanner" && expression.callee.property in SCANNER_RETURN_TYPES) return SCANNER_RETURN_TYPES[expression.callee.property];
+      if (expression.callee.property === "equals") return JAVA_TYPES.BOOLEAN;
+      if (["length", "charAt", "substring", "toUpperCase", "toLowerCase", "contains"].includes(expression.callee.property)) {
+        return ({ length: JAVA_TYPES.INT, charAt: JAVA_TYPES.CHAR, substring: JAVA_TYPES.STRING, toUpperCase: JAVA_TYPES.STRING, toLowerCase: JAVA_TYPES.STRING, contains: JAVA_TYPES.BOOLEAN })[expression.callee.property];
+      }
     }
     if (expression.callee.type === "Identifier") {
       const method = this.currentClass?.methods.get(expression.callee.name);
@@ -322,7 +341,6 @@ export class SemanticAnalyzer {
         return method.returnType;
       }
     }
-    if (expression.callee.type === "MemberExpression") this.expressionType(expression.callee.object);
     return JAVA_TYPES.UNKNOWN;
   }
 

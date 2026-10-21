@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { binary, createArray, createJavaRuntime, javaString } from "../js/runtime/runtime.js";
+import { binary, createArray, createJavaRuntime, javaString, MAX_ARRAY_ELEMENTS } from "../js/runtime/runtime.js";
 
 test("runtime implements Java-style integer division and overflow-sized int arithmetic", () => {
   assert.equal(binary("/", -7, 2, "int"), -3);
@@ -22,3 +22,8 @@ test("runtime streams output and limits excessive output", () => {
   assert.throws(() => runtime.println("toolong"), /output exceeded/);
 });
 
+
+test("runtime rejects oversized and multiply nested array allocations", () => {
+  assert.throws(() => createArray([MAX_ARRAY_ELEMENTS + 1], "int"), /element limit/);
+  assert.throws(() => createArray([500, 500], "int"), /element limit/);
+});

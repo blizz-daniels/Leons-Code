@@ -1,11 +1,18 @@
 import { FEATURE_SUPPORT } from "./feature-support.js";
-import { hasErrors } from "./diagnostics.js";
+import { createDiagnostic, hasErrors } from "./diagnostics.js";
 import { lex } from "./lexer.js";
 import { parse } from "./parser.js";
 import { analyze } from "./semantic-analyzer.js";
 import { translate } from "./translator.js";
 
+export const MAX_SOURCE_LENGTH = 200_000;
+
 export function compile(source) {
+  if (typeof source !== "string") return inputFailure("COMP_INVALID_SOURCE", "Compiler input must be Java source text.");
+  if (source.length > MAX_SOURCE_LENGTH) return inputFailure(
+    "COMP_SOURCE_TOO_LARGE",
+    `Source exceeds JavaLab's ${MAX_SOURCE_LENGTH.toLocaleString()} character limit. Split the exercise into a smaller example.`,
+  );
   const lexicalResult = lex(source);
   const parsedResult = parse(lexicalResult.tokens);
   let diagnostics = [...lexicalResult.diagnostics, ...parsedResult.diagnostics];
@@ -32,6 +39,24 @@ export function compile(source) {
     sourceMap: null,
     runtimeMetadata: translationResult?.metadata || null,
     symbols: semanticResult.symbols,
+    featureSupport: FEATURE_SUPPORT,
+  };
+}
+
+function inputFailure(code, message) {
+  const point = { line: 1, column: 1, offset: 0 };
+  const diagnostic = createDiagnostic({ phase: "compiler", code, message, start: point, end: point });
+  return {
+    status: "error",
+    stage: "input",
+    tokens: [{ type: "EOF", lexeme: "", value: null, start: point, end: point }],
+    ast: { type: "CompilationUnit", declarations: [], loc: { start: point, end: point } },
+    diagnostics: [diagnostic],
+    unsupportedFeatures: [],
+    generatedJavaScript: null,
+    sourceMap: null,
+    runtimeMetadata: null,
+    symbols: { classes: [] },
     featureSupport: FEATURE_SUPPORT,
   };
 }

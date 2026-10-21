@@ -10,7 +10,7 @@ export function renderDiagnostics({ list, summary }, diagnostics) {
   if (!diagnostics.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "Parsed successfully. Semantic checks will be added in Phase 3.";
+    empty.textContent = "No diagnostics. Parsing and supported semantic checks completed successfully.";
     list.append(empty);
     return;
   }

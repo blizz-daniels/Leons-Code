@@ -1,6 +1,6 @@
 export const FEATURE_SUPPORT = Object.freeze({
-  version: "0.3.0",
-  phase: 3,
+  version: "0.6.0",
+  phase: 6,
   features: Object.freeze({
     lexicalTokens: "supported",
     compilationUnits: "supported",
@@ -20,8 +20,10 @@ export const FEATURE_SUPPORT = Object.freeze({
     lambdas: "unsupported",
     semanticAnalysis: "supported-subset",
     translation: "supported-subset",
-    execution: "sandboxed-iframe-subset",
-    scannerInput: "planned-phase-4",
+    execution: "sandboxed-iframe-bounded",
+    executionLimits: "source-input-output-array-and-time-bounded",
+    deployment: "github-pages-workflow",
+    scannerInput: "supported-async-panel",
   }),
 });
 

@@ -7,6 +7,8 @@ import { renderAst, renderDiagnostics } from "./ui/compiler-results.js";
 import { compile } from "./compiler/compiler.js";
 import { ExecutionEngine } from "./runtime/execution-engine.js";
 import { safeJsonParse } from "./utils/helpers.js";
+import { createLocalProjectStore, safeFilename } from "./storage/local-projects.js";
+import { initializeLearningTools } from "./ui/learning-tools.js";
 
 const SESSION_KEY = "javalab.phase1.session";
 const SETTINGS_KEY = "javalab.phase1.settings";
@@ -30,6 +32,8 @@ const elements = {
 
 const savedSettings = safeJsonParse(localStorage.getItem(SETTINGS_KEY), {});
 const savedSession = savedSettings.restoreSession === false ? null : safeJsonParse(localStorage.getItem(SESSION_KEY));
+const projectStore = createLocalProjectStore();
+let currentProjectId = savedSession?.projectId || null;
 let state = createEditorState(savedSession?.editor);
 let projectName = savedSession?.projectName || "My Java Project";
 elements.projectName.textContent = projectName;
@@ -46,6 +50,10 @@ const execution = new ExecutionEngine({
       output.write("Execution started in an isolated sandbox.", "system");
     } else if (message.type === "output") {
       output.write(message.text, message.kind === "err" ? "error" : "output");
+    } else if (message.type === "input-request") {
+      elements.executionStatus.textContent = "Waiting for input";
+      output.write(`Scanner is waiting for a ${message.mode || "token"}.`, "system");
+      elements.programInput.focus();
     } else if (message.type === "completed") {
       document.querySelector("#run-button").disabled = false;
       document.querySelector("#stop-button").disabled = true;
@@ -72,7 +80,7 @@ const editor = new JavaEditor({
 });
 
 applySettings(savedSettings);
-output.write("JavaLab Phase 3 compiler and runtime ready. Check validates source; Run executes supported programs in an isolated sandbox.");
+output.write("JavaLab Phase 6 ready. Run supports the documented Java subset in a bounded, isolated sandbox.");
 
 function updateDirtyState(dirty = isDirty(state)) {
   elements.editorDirtyDot.classList.toggle("is-hidden", !dirty);
@@ -81,12 +89,18 @@ function updateDirtyState(dirty = isDirty(state)) {
 }
 
 function persistSession() {
-  const savedState = markSaved(state);
-  state = savedState;
-  editor.state = savedState;
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ projectName, editor: { source: state.source, filename: state.filename } }));
-  updateDirtyState(false);
-  output.write("Saved this project to the current browser session.");
+  try {
+    const project = projectStore.save({ id: currentProjectId, name: projectName, filename: safeFilename(state.filename), source: state.source });
+    currentProjectId = project.id;
+    const savedState = markSaved({ ...state, filename: project.filename });
+    state = savedState;
+    editor.state = savedState;
+    elements.explorerFilename.textContent = state.filename;
+    elements.editorFilename.textContent = state.filename;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ projectId: currentProjectId, projectName, editor: { source: state.source, filename: state.filename } }));
+    updateDirtyState(false);
+    output.write("Saved this project locally in this browser.");
+  } catch (error) { output.write(error.message || "Could not save this project locally.", "error"); }
 }
 
 function checkSource() {
@@ -121,7 +135,9 @@ function runSource() {
     output.write(result.status === "compiled" ? "Run requires public static void main(String[] args)." : "Run was not started because compilation failed.", "error");
     return;
   }
-  execution.run({ code: result.generatedJavaScript, metadata: result.runtimeMetadata, args: [] });
+  const queuedInput = elements.programInput.value;
+  elements.programInput.value = "";
+  execution.run({ code: result.generatedJavaScript, metadata: result.runtimeMetadata, args: [], input: queuedInput });
 }
 
 function compilerUnavailable(action) {
@@ -151,15 +167,15 @@ document.querySelector("#save-project-button").addEventListener("click", persist
 document.querySelector("#new-project-button").addEventListener("click", () => {
   if (isDirty(state) && !window.confirm("Discard unsaved changes and create a new starter project?")) return;
   projectName = "My Java Project";
+  currentProjectId = null;
   elements.projectName.textContent = projectName;
   editor.replaceSource(DEFAULT_SOURCE);
-  state = markSaved(editor.state);
+  state = markSaved({ ...editor.state, filename: "Main.java" });
   editor.state = state;
+  elements.explorerFilename.textContent = state.filename;
+  elements.editorFilename.textContent = state.filename;
   updateDirtyState(false);
   output.write("Created a new starter project. Save when you want to keep it.");
-});
-document.querySelector("#open-project-button").addEventListener("click", () => {
-  output.write("Opening multiple saved projects is planned for Phase 5. The current browser session can be saved now.", "warning");
 });
 
 document.querySelector("#run-button").addEventListener("click", () => compilerUnavailable("Run"));
@@ -168,10 +184,16 @@ document.querySelector("#format-button").addEventListener("click", () => {
   output.write("Formatting is intentionally unavailable until the parser can preserve Java syntax safely.", "warning");
 });
 document.querySelector("#clear-console-button").addEventListener("click", () => output.clear());
-document.querySelector("#reset-input-button").addEventListener("click", () => clearInputQueue(elements.programInput));
+document.querySelector("#reset-input-button").addEventListener("click", () => { execution.clearQueuedInput(); clearInputQueue(elements.programInput); });
 document.querySelector("#clear-input-button").addEventListener("click", () => clearInputQueue(elements.programInput));
 document.querySelector("#send-input-button").addEventListener("click", () => {
-  output.write("Input is queued in the interface, but Scanner execution will be implemented in Phase 4.", "warning");
+  const delivery = execution.provideInput(elements.programInput.value);
+  if (delivery === "too-large") { output.write("Program input is limited to 65,536 characters.", "error"); return; }
+  if (delivery === "queue-full") { output.write("The input queue is full. Wait for Scanner to request a value or reset the queue.", "warning"); return; }
+  if (!delivery) { output.write("Start a program that uses Scanner before sending input.", "warning"); return; }
+  clearInputQueue(elements.programInput);
+  elements.executionStatus.textContent = "Running";
+  output.write(delivery === "sent" ? "Input sent to Scanner." : "Input queued for Scanner.", "system");
 });
 document.querySelector("#show-js-button").addEventListener("click", () => activateInspector("javascript"));
 document.querySelector("#show-ast-button").addEventListener("click", () => activateInspector("ast"));
@@ -268,3 +290,29 @@ const helpDialog = document.querySelector("#help-dialog");
 document.querySelector("#help-button").addEventListener("click", () => helpDialog.showModal());
 document.querySelector("#close-help-button").addEventListener("click", () => helpDialog.close());
 
+
+function currentProject() {
+  return { id: currentProjectId, name: projectName, filename: state.filename, source: state.source };
+}
+
+function loadLearningProject(project, saved) {
+  if (isDirty(state) && !window.confirm("Discard unsaved changes and replace the current source?")) return false;
+  currentProjectId = project.id || null;
+  projectName = project.name;
+  editor.replaceSource(project.source);
+  state = saved ? markSaved({ ...editor.state, filename: safeFilename(project.filename) }) : { ...editor.state, filename: safeFilename(project.filename) };
+  editor.state = state;
+  elements.projectName.textContent = projectName;
+  elements.explorerFilename.textContent = state.filename;
+  elements.editorFilename.textContent = state.filename;
+  updateDirtyState(saved ? false : true);
+  return true;
+}
+
+initializeLearningTools({
+  getProject: currentProject,
+  loadProject: loadLearningProject,
+  saveProject: persistSession,
+  compileSource: checkSource,
+  output,
+});

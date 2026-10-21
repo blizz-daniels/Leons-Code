@@ -2,18 +2,20 @@
 
 JavaLab is a static, browser-based learning environment that will translate a documented subset of Java into JavaScript using its own lexer, parser, semantic analysis, translator, and runtime. It is designed for GitHub Pages and does not require a production backend.
 
-## Current status: Phase 1 — Foundation complete
+## Current status: Phase 6 — Security, testing, and deployment complete
 
-The project currently provides a responsive Java workspace with:
+The project currently provides:
 
-- A dark/light theme, keyboard-accessible panels, and mobile layout.
-- A Java editor with line numbers, lightweight syntax highlighting, auto-indentation, Tab/outdent behavior, undo/redo, find/replace, and an unsaved-change indicator.
-- An output console that preserves scroll position when the user has scrolled away from the latest output.
-- An input queue UI, diagnostics area, and compiler-inspection panels, all clearly marked as pending until their backing compiler/runtime functionality exists.
-- Browser-session saving using `localStorage`; multi-project persistence is scheduled for Phase 5.
-- A dependency-free Node test setup for the editor state and syntax-highlighting utilities.
+- A responsive Java workspace with editor, console, session saving, syntax highlighting, and compiler inspectors.
+- A custom lexer, parser, AST, source diagnostics, semantic analysis, JavaScript translator, and generated-code view.
+- A hardened isolated iframe execution engine with cancellation, bounded source/input/output/array resources, time limits, and validated session messages.
+- Interactive `Scanner` input through the program-input panel, typed arrays, selected `String`/`Math` calls, and exception handling.
+- Fifteen verified starter examples plus browser-local save, open, rename, delete, import, export, and generated-JavaScript download workflows.
+- A dependency-free Node test suite that covers editor behavior, compiler stages, runtime behavior, and end-to-end Java programs.
+- A documented learning subset rather than a full Java VM or JDK.
+- A GitHub Pages deployment workflow and documented execution-boundary limitations.
 
-No Java program is compiled or executed yet. The Run and Check controls explicitly report this rather than fabricating a compile result. The custom lexer, parser, compiler facade, translator, and runtime start in later phases.
+Run compiles the supported subset and executes it in the isolated sandbox. Check shows diagnostics, AST data, and the generated JavaScript.
 
 ## Run locally
 
@@ -36,17 +38,17 @@ npm test
 ## Planned feature progression
 
 1. **Foundation (complete):** UI, editor, console, and test infrastructure.
-2. **Compiler foundation:** custom lexer, AST, parser, source positions, syntax diagnostics, and compiler tests.
-3. **Executable Java subset:** semantic analysis, Java-to-JavaScript translation, compatible primitive operations, and controlled execution.
-4. **Input and standard library:** Scanner, arrays, String/Math operations, and exceptions.
-5. **Learning tools:** examples, local projects, translation/AST inspectors, documentation, and stronger feedback.
-6. **Security, testing, and deployment:** isolation review, cancellation/timeouts, full suite, and GitHub Pages validation.
+2. **Compiler foundation (complete):** custom lexer, AST, parser, source positions, syntax diagnostics, and compiler tests.
+3. **Executable Java subset (complete):** semantic analysis, Java-to-JavaScript translation, compatible primitive operations, and controlled execution.
+4. **Input and standard library (complete):** Scanner, arrays, String/Math operations, and exceptions.
+5. **Learning tools (complete):** tested starter examples, browser-local projects, translation/AST inspectors, documentation, and stronger feedback.
+6. **Security, testing, and deployment (complete):** isolation review, cancellation/timeouts, resource limits, expanded tests, and GitHub Pages workflow.
 
 ## Deployment
 
-The application uses relative paths and browser-native ES modules, so it can be published from the repository root with GitHub Pages. When later phases are complete, select the repository's deployment branch and `/ (root)` in **Settings → Pages**. The included `.nojekyll` file prevents Jekyll processing from interfering with static assets.
+The application uses relative paths and browser-native ES modules, so it can be published on GitHub Pages without a build step. The included workflow deploys `main`; in the repository, set **Settings → Pages → Build and deployment → Source** to **GitHub Actions**. See `docs/phase-6-security-and-deployment.md` for the exact setup.
 
 ## Security and limitations
 
-Phase 1 does not execute any user program, so it creates no code-execution boundary. The future execution engine will use a documented isolated-message design and must not use direct `eval()` or `new Function()` in the main application context. Java compatibility is not claimed at this stage.
+Programs run in a sandboxed iframe with a narrow validated message protocol, strict CSP, execution deadline, and resource limits. The main application does not directly evaluate generated user code. Java compatibility is deliberately limited to the documented subset in `docs/`; the sandbox is a defense-in-depth boundary, not a claim that arbitrary JavaScript is safe.
 

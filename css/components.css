@@ -70,3 +70,11 @@
 .help-card p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.55; }
 kbd { padding: 1px 4px; color: var(--text); background: var(--surface-raised); border: 1px solid var(--border); border-radius: 3px; font-family: inherit; font-size: .75rem; }
 
+.dialog-note { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.45; }
+.project-list, .example-list { display: grid; gap: 7px; max-height: 48vh; overflow: auto; }
+.project-row, .example-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 9px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; }
+.project-row strong, .example-row strong { display: block; font-size: .82rem; }
+.project-row small, .example-row small { display: block; margin-top: 2px; color: var(--muted); font-size: .72rem; }
+.project-row-actions { display: flex; gap: 5px; }
+.example-row button { flex: 0 0 auto; }
+.projects-card, .examples-card { width: min(620px, calc(100vw - 32px)); }

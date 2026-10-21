@@ -4,7 +4,7 @@ import vm from "node:vm";
 import { compile } from "../js/compiler/compiler.js";
 import { createJavaRuntime } from "../js/runtime/runtime.js";
 
-test("translated classes, constructors, fields, and inheritance execute together", () => {
+test("translated classes, constructors, fields, and inheritance execute together", async () => {
   const source = `class Person {
     String name;
     Person(String name) { this.name = name; }
@@ -22,7 +22,7 @@ test("translated classes, constructors, fields, and inheritance execute together
   const result = compile(source);
   assert.equal(result.status, "compiled", result.diagnostics.map((item) => item.message).join("\n"));
   const output = [];
-  vm.runInNewContext(result.generatedJavaScript, {
+  await vm.runInNewContext(result.generatedJavaScript, {
     JavaRuntime: createJavaRuntime({ onOutput: (entry) => output.push(entry.text) }),
   });
   assert.equal(output.join(""), "Hello, Ada\n");

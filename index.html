@@ -26,6 +26,7 @@
           <button class="button button-quiet" id="new-project-button" type="button">New</button>
           <button class="button button-quiet" id="open-project-button" type="button">Open</button>
           <button class="button button-primary" id="save-project-button" type="button">
+          <button class="button button-quiet" id="examples-button" type="button">Examples</button>
             Save <span class="shortcut" aria-hidden="true">Ctrl S</span>
           </button>
           <label class="theme-control">
@@ -56,7 +57,7 @@
               <span aria-hidden="true">☕</span>
               <span id="explorer-file-name">Main.java</span>
             </button>
-            <p class="explorer-hint">Local project management arrives in Phase 5.</p>
+            <p class="explorer-hint">Saved only in this browser. Use Open to switch, rename, import, export, or delete projects.</p>
           </div>
         </aside>
 
@@ -78,7 +79,7 @@
             <textarea id="editor-input" class="editor-input" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Java source code editor"></textarea>
           </div>
           <div class="editor-statusbar">
-            <span>Java (subset in development)</span>
+            <span>Java (documented learning subset)</span>
             <span id="editor-status">Saved</span>
           </div>
         </section>
@@ -94,7 +95,7 @@
             <button class="button button-quiet" id="reset-input-button" type="button">Reset input</button>
             <button class="button button-quiet" id="show-js-button" type="button">View JavaScript</button>
             <button class="button button-quiet" id="show-ast-button" type="button">View AST</button>
-            <span class="execution-status" id="execution-status" role="status">Ready for compiler foundation</span>
+            <span class="execution-status" id="execution-status" role="status">Ready</span>
           </div>
 
           <div class="output-grid">
@@ -113,13 +114,13 @@
               <div class="panel-heading">
                 <div>
                   <h2 id="input-title">Program input</h2>
-                  <p>Used by Scanner in a later phase</p>
+                  <p>Send token or line input when a running Scanner program requests it</p>
                 </div>
                 <button class="collapse-button" type="button" aria-label="Collapse program input" aria-expanded="true" data-collapse="input">−</button>
               </div>
               <div class="panel-body input-content">
                 <label for="program-input">Input queue</label>
-                <textarea id="program-input" rows="3" placeholder="Enter values here, one value or line at a time."></textarea>
+                <textarea id="program-input" rows="3" maxlength="65536" placeholder="Enter values here, one value or line at a time."></textarea>
                 <div class="input-actions">
                   <button class="button" id="send-input-button" type="button">Send input</button>
                   <button class="button button-quiet" id="clear-input-button" type="button">Clear</button>
@@ -136,7 +137,7 @@
                 <button class="collapse-button" type="button" aria-label="Collapse diagnostics" aria-expanded="true" data-collapse="diagnostics">−</button>
               </div>
               <div class="panel-body" id="diagnostics-list">
-                <p class="empty-state">Checks will appear here after the parser is implemented in Phase 2.</p>
+                <p class="empty-state">Compilation and runtime diagnostics appear here.</p>
               </div>
             </section>
 
@@ -150,7 +151,7 @@
               </div>
               <div class="panel-body inspector-content">
                 <div id="javascript-panel" role="tabpanel" aria-labelledby="javascript-tab">
-                  <p class="empty-state">Generated JavaScript will be shown here after a successful translation in Phase 3.</p>
+                  <p class="empty-state">Run Check to inspect the generated JavaScript translation.</p>
                 </div>
                 <div id="ast-panel" role="tabpanel" aria-labelledby="ast-tab" hidden>
                   <p class="empty-state">The parsed abstract syntax tree will be shown here after Phase 2.</p>
@@ -184,12 +185,37 @@
     <dialog id="help-dialog" class="dialog">
       <div class="dialog-card help-card">
         <div class="dialog-heading">
-          <h2>JavaLab — Phase 1</h2>
+          <h2>JavaLab learning guide</h2>
           <button class="icon-button" id="close-help-button" type="button" aria-label="Close help">×</button>
         </div>
-        <p>This foundation provides an editable Java workspace, syntax highlighting, console, input queue, responsive panels, and source-session saving.</p>
-        <p>The custom lexer, parser, compiler, and execution runtime have not been added yet. Run and Check accurately report that limitation; no code is simulated or executed.</p>
+        <p>Write Java in the editor, select <strong>Check</strong> to inspect diagnostics, AST data, and the generated JavaScript, then select <strong>Run</strong> to execute the documented subset in an isolated frame.</p>
+        <p>Use <strong>Examples</strong> for tested starter programs. Save projects locally in this browser, reopen them from <strong>Open</strong>, and use its Import, Export, and Download JavaScript tools when needed.</p>
+        <p>For Scanner examples, the program pauses at input; enter a token or line in Program input and select Send input. JavaLab is a learning subset, not a full JDK.</p>
+        <p>Supported language details are documented in <code>docs/phase-4-supported-subset.md</code>; execution limits and deployment guidance are in <code>docs/phase-6-security-and-deployment.md</code>.</p>
         <p>Use <kbd>Ctrl</kbd> + <kbd>S</kbd> to save this browser session, <kbd>Tab</kbd> to indent, and <kbd>Ctrl</kbd> + <kbd>F</kbd> to find or replace text.</p>
+      </div>
+    </dialog>
+
+    <dialog id="projects-dialog" class="dialog">
+      <div class="dialog-card projects-card">
+        <div class="dialog-heading"><h2>Local projects</h2><button class="icon-button" id="close-projects-button" type="button" aria-label="Close projects">?</button></div>
+        <p class="dialog-note">Projects stay in this browser and do not sync between devices.</p>
+        <div class="project-list" id="projects-list" aria-live="polite"></div>
+        <div class="dialog-actions">
+          <button class="button" id="rename-project-button" type="button">Rename current</button>
+          <button class="button" id="import-project-button" type="button">Import .java</button>
+          <button class="button" id="export-project-button" type="button">Export .java</button>
+          <button class="button button-quiet" id="download-js-button" type="button">Download JavaScript</button>
+        </div>
+        <input id="import-project-input" type="file" accept=".java,text/x-java,text/plain" hidden />
+      </div>
+    </dialog>
+
+    <dialog id="examples-dialog" class="dialog">
+      <div class="dialog-card examples-card">
+        <div class="dialog-heading"><h2>Starter examples</h2><button class="icon-button" id="close-examples-button" type="button" aria-label="Close examples">?</button></div>
+        <p class="dialog-note">Each example is tested against JavaLab's supported subset. Choosing one replaces the editor source.</p>
+        <div class="example-list" id="examples-list"></div>
       </div>
     </dialog>
 

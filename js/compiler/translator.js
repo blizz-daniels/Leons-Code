@@ -1,4 +1,5 @@
 import { defaultValueFor, typeFromReference } from "../runtime/java-types.js";
+const SCANNER_METHODS = new Set(["next", "nextLine", "nextInt", "nextLong", "nextDouble", "nextFloat", "nextBoolean", "hasNext", "close"]);
 
 export function translate(ast) {
   return new JavaScriptTranslator(ast).translate();
@@ -12,12 +13,15 @@ export class JavaScriptTranslator {
 
   translate() {
     const classes = this.ast.declarations.filter((node) => node.type === "ClassDeclaration");
-    const chunks = ["\"use strict\";", ""];
+    const chunks = ["(async () => {", "    \"use strict\";", ""];
+    this.indentLevel = 1;
     for (const classNode of classes) {
       chunks.push(this.classDeclaration(classNode), "");
     }
     const entryPoint = this.findEntryPoint(classes);
-    if (entryPoint) chunks.push(`${entryPoint.className}.${entryPoint.methodName}(JavaRuntime.args);`);
+    if (entryPoint) chunks.push(`${this.indent()}await ${entryPoint.className}.${entryPoint.methodName}(JavaRuntime.args);`);
+    this.indentLevel = 0;
+    chunks.push("})()");
     return {
       code: chunks.join("\n").trimEnd() + "\n",
       metadata: { entryPoint, classes: classes.map((classNode) => classNode.name) },
@@ -34,7 +38,7 @@ export class JavaScriptTranslator {
 
   classDeclaration(node) {
     const parent = node.superClass ? ` extends ${typeFromReference(node.superClass)}` : "";
-    const lines = [`class ${node.name}${parent} {`];
+    const lines = [`${this.indent()}class ${node.name}${parent} {`];
     this.indentLevel += 1;
     const fields = node.members.filter((member) => member.type === "FieldDeclaration");
     const methods = node.members.filter((member) => member.type === "MethodDeclaration" || member.type === "ConstructorDeclaration");
@@ -45,7 +49,7 @@ export class JavaScriptTranslator {
       if (index < methods.length - 1) lines.push("");
     }
     this.indentLevel -= 1;
-    lines.push("}");
+    lines.push(`${this.indent()}}`);
     return lines.join("\n");
   }
 
@@ -62,11 +66,15 @@ export class JavaScriptTranslator {
   methodDeclaration(node) {
     const name = node.type === "ConstructorDeclaration" ? "constructor" : node.name;
     const prefix = node.type === "MethodDeclaration" && node.modifiers.includes("static") ? "static " : "";
+    const asyncKeyword = node.type === "MethodDeclaration" ? "async " : "";
     const parameters = node.parameters.map((parameter) => `${parameter.variadic ? "..." : ""}${parameter.name}`).join(", ");
-    const lines = [`${this.indent()}${prefix}${name}(${parameters}) {`];
+    const lines = [`${this.indent()}${prefix}${asyncKeyword}${name}(${parameters}) {`];
     this.indentLevel += 1;
+    const previousAsyncContext = this.isAsyncContext;
+    this.isAsyncContext = node.type === "MethodDeclaration";
     if (node.body) lines.push(...this.blockContents(node.body));
     else lines.push(`${this.indent()}JavaRuntime.unsupported(${quote(`Method '${node.name}' has no executable body.`)});`);
+    this.isAsyncContext = previousAsyncContext;
     this.indentLevel -= 1;
     lines.push(`${this.indent()}}`);
     return lines;
@@ -226,7 +234,7 @@ export class JavaScriptTranslator {
       case "AssignmentExpression": return `(${this.expression(node.left)} ${node.operator} ${this.expression(node.right)})`;
       case "MemberExpression": return node.computed ? `${this.expression(node.object)}[${this.expression(node.property)}]` : `${this.expression(node.object)}.${node.property}`;
       case "CallExpression": return this.callExpression(node);
-      case "NewExpression": return `new ${typeFromReference(node.constructorType)}(${node.arguments.map((argument) => this.expression(argument)).join(", ")})`;
+      case "NewExpression": return this.newExpression(node);
       case "NewArrayExpression": return this.newArrayExpression(node);
       case "ArrayInitializer": return `[${node.elements.map((element) => this.expression(element)).join(", ")}]`;
       default: return `JavaRuntime.unsupported(${quote(`Unsupported expression '${node.type}'.`)})`;
@@ -248,8 +256,22 @@ export class JavaScriptTranslator {
     if (path.startsWith("Math.")) return `JavaRuntime.math.${path.slice(5)}(${args.join(", ")})`;
     if (node.callee.type === "MemberExpression" && node.callee.property === "equals") return `JavaRuntime.stringEquals(${this.expression(node.callee.object)}, ${args[0] || "null"})`;
     if (node.callee.type === "MemberExpression" && node.callee.property === "length") return `JavaRuntime.stringLength(${this.expression(node.callee.object)})`;
-    if (node.callee.type === "Identifier") return `this.${node.callee.name}(${args.join(", ")})`;
-    return `${this.expression(node.callee)}(${args.join(", ")})`;
+    const stringMethod = { contains: "stringContains", charAt: "stringCharAt", substring: "stringSubstring", toUpperCase: "stringUpper", toLowerCase: "stringLower" }[node.callee.property];
+    if (node.callee.type === "MemberExpression" && stringMethod) return `JavaRuntime.${stringMethod}(${[this.expression(node.callee.object), ...args].join(", ")})`;
+    if (node.callee.type === "MemberExpression" && SCANNER_METHODS.has(node.callee.property)) {
+      if (!this.isAsyncContext) return `JavaRuntime.unsupported(${quote("Scanner input is only supported inside methods.")})`;
+      return `await JavaRuntime.scannerCall(${this.expression(node.callee.object)}, ${quote(node.callee.property)})`;
+    }
+    if (node.callee.type === "SuperExpression") return `super(${args.join(", ")})`;
+    const call = node.callee.type === "Identifier" ? `this.${node.callee.name}(${args.join(", ")})` : `${this.expression(node.callee)}(${args.join(", ")})`;
+    return this.isAsyncContext ? `await ${call}` : call;
+  }
+
+  newExpression(node) {
+    const type = typeFromReference(node.constructorType);
+    if (type === "Scanner") return "JavaRuntime.createScanner()";
+    if (["Exception", "RuntimeException", "IllegalArgumentException", "ArithmeticException", "InputMismatchException"].includes(type)) return `new Error(${node.arguments.map((argument) => this.expression(argument)).join(", ")})`;
+    return `new ${type}(${node.arguments.map((argument) => this.expression(argument)).join(", ")})`;
   }
 
   newArrayExpression(node) {

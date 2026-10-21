@@ -1,6 +1,8 @@
 import { defaultValueFor } from "./java-types.js";
 import { JavaScanner } from "./java-io.js";
 
+export const MAX_ARRAY_ELEMENTS = 100_000;
+
 export function createJavaRuntime({ onOutput = () => {}, requestInput = async () => null, deadline = Date.now() + 3000, args = [], maxOutput = 10_000 } = {}) {
   let outputSize = 0;
   const emit = (kind, values) => {
@@ -18,10 +20,20 @@ export function createJavaRuntime({ onOutput = () => {}, requestInput = async ()
     binary,
     defaultValue: (type) => defaultValueFor(type),
     createArray,
-    arrayFromInitializer: (values) => values,
+    arrayFromInitializer,
     stringEquals: (left, right) => String(left) === String(right),
     stringLength: (value) => String(value).length,
-    math: Math,
+    stringContains: (value, search) => String(value).includes(String(search)),
+    stringCharAt,
+    stringSubstring,
+    stringUpper: (value) => String(value).toUpperCase(),
+    stringLower: (value) => String(value).toLowerCase(),
+    createScanner: () => new JavaScanner(requestInput),
+    scannerCall: async (scanner, method) => {
+      if (!(scanner instanceof JavaScanner) || typeof scanner[method] !== "function") throw new Error(`No supported Scanner method named '${method}'.`);
+      return scanner[method]();
+    },
+    math: createMathRuntime(),
     checkExecution: () => {
       if (Date.now() > deadline) throw new Error("Execution timed out after the configured limit.");
     },
@@ -50,16 +62,61 @@ export function binary(operator, left, right, type = "int") {
 }
 
 export function createArray(dimensions, type) {
+  return createBoundedArray(dimensions, type, { remaining: MAX_ARRAY_ELEMENTS });
+}
+
+export function arrayFromInitializer(values) {
+  if (!Array.isArray(values) || values.length > MAX_ARRAY_ELEMENTS) throw new RangeError(`Array allocation exceeds JavaLab's ${MAX_ARRAY_ELEMENTS.toLocaleString()} element limit.`);
+  return values;
+}
+
+function createBoundedArray(dimensions, type, budget) {
+  if (!Array.isArray(dimensions)) throw new TypeError("Array dimensions must be an array.");
   const [length = 0, ...rest] = dimensions;
   const safeLength = Math.max(0, toInt(length));
-  return Array.from({ length: safeLength }, () => rest.length ? createArray(rest, type) : defaultValueFor(type));
+  if (safeLength > budget.remaining) throw new RangeError(`Array allocation exceeds JavaLab's ${MAX_ARRAY_ELEMENTS.toLocaleString()} element limit.`);
+  budget.remaining -= safeLength;
+  return Array.from({ length: safeLength }, () => rest.length ? createBoundedArray(rest, type, budget) : defaultValueFor(type));
 }
 
 export function javaString(value) {
   if (value === null) return "null";
   if (value === true) return "true";
+
   if (value === false) return "false";
   return String(value);
+}
+export function createMathRuntime() {
+  return Object.freeze({
+    E: Math.E,
+    PI: Math.PI,
+    abs: Math.abs,
+    ceil: Math.ceil,
+    cos: Math.cos,
+    floor: Math.floor,
+    max: Math.max,
+    min: Math.min,
+    pow: Math.pow,
+    random: Math.random,
+    round: (value) => Math.floor(Number(value) + 0.5),
+    sin: Math.sin,
+    sqrt: Math.sqrt,
+  });
+}
+
+function stringCharAt(value, index) {
+  const string = String(value);
+  const position = toInt(index);
+  if (position < 0 || position >= string.length) throw new Error(`StringIndexOutOfBoundsException: ${position}`);
+  return string.charAt(position);
+}
+
+function stringSubstring(value, start, end = undefined) {
+  const string = String(value);
+  const from = toInt(start);
+  const to = end === undefined ? string.length : toInt(end);
+  if (from < 0 || to < from || to > string.length) throw new Error(`StringIndexOutOfBoundsException: ${from}, ${to}`);
+  return string.slice(from, to);
 }
 
 function toInt(value) {
