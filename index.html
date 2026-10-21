@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="JavaLab is a browser-based Java learning environment." />
+    <title>JavaLab — Learn Java. Run Anywhere.</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/editor.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#editor-input">Skip to editor</a>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand" aria-label="JavaLab home">
+          <span class="brand-mark" aria-hidden="true">J</span>
+          <div>
+            <h1>JavaLab</h1>
+            <p>Learn Java. Run Anywhere.</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions" aria-label="Project actions">
+          <button class="button button-quiet" id="new-project-button" type="button">New</button>
+          <button class="button button-quiet" id="open-project-button" type="button">Open</button>
+          <button class="button button-primary" id="save-project-button" type="button">
+            Save <span class="shortcut" aria-hidden="true">Ctrl S</span>
+          </button>
+          <label class="theme-control">
+            <span class="sr-only">Color theme</span>
+            <select id="theme-select" aria-label="Color theme">
+              <option value="dark">Dark theme</option>
+              <option value="light">Light theme</option>
+            </select>
+          </label>
+          <button class="icon-button" id="settings-button" type="button" aria-label="Open settings" aria-expanded="false">⚙</button>
+          <button class="button button-quiet" id="help-button" type="button">Help</button>
+        </div>
+      </header>
+
+      <main class="workspace" aria-label="JavaLab workspace">
+        <aside class="panel explorer-panel" data-panel="explorer">
+          <div class="panel-heading">
+            <h2>Explorer</h2>
+            <button class="collapse-button" type="button" aria-label="Collapse explorer" aria-expanded="true" data-collapse="explorer">−</button>
+          </div>
+          <div class="panel-body explorer-body">
+            <div class="project-title-row">
+              <span class="folder-icon" aria-hidden="true">⌄</span>
+              <span id="project-name">My Java Project</span>
+              <span class="dirty-dot is-hidden" id="project-dirty-dot" aria-label="Unsaved changes"></span>
+            </div>
+            <button class="file-item is-active" type="button" aria-current="page">
+              <span aria-hidden="true">☕</span>
+              <span id="explorer-file-name">Main.java</span>
+            </button>
+            <p class="explorer-hint">Local project management arrives in Phase 5.</p>
+          </div>
+        </aside>
+
+        <section class="panel editor-panel" data-panel="editor" aria-labelledby="editor-title">
+          <div class="editor-titlebar">
+            <div class="file-tab is-active">
+              <span aria-hidden="true">☕</span>
+              <span id="editor-title">Main.java</span>
+              <span class="dirty-dot is-hidden" id="editor-dirty-dot" aria-label="Unsaved changes"></span>
+            </div>
+            <div class="editor-tools">
+              <button class="text-button" id="find-button" type="button">Find / Replace</button>
+              <span class="cursor-position" id="cursor-position" aria-live="polite">Ln 1, Col 1</span>
+            </div>
+          </div>
+          <div class="editor-wrap" id="editor-wrap">
+            <pre class="syntax-layer" id="syntax-layer" aria-hidden="true"><code id="syntax-code"></code></pre>
+            <div class="line-numbers" id="line-numbers" aria-hidden="true"></div>
+            <textarea id="editor-input" class="editor-input" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Java source code editor"></textarea>
+          </div>
+          <div class="editor-statusbar">
+            <span>Java (subset in development)</span>
+            <span id="editor-status">Saved</span>
+          </div>
+        </section>
+
+        <section class="execution-area" aria-label="Compilation and execution tools">
+          <div class="toolbar" aria-label="Execution toolbar">
+            <button class="button button-run" id="run-button" type="button">▶ Run</button>
+            <button class="button" id="check-button" type="button">Check</button>
+            <button class="button" id="stop-button" type="button" disabled>■ Stop</button>
+            <button class="button button-quiet" id="format-button" type="button">Format</button>
+            <span class="toolbar-divider" aria-hidden="true"></span>
+            <button class="button button-quiet" id="clear-console-button" type="button">Clear console</button>
+            <button class="button button-quiet" id="reset-input-button" type="button">Reset input</button>
+            <button class="button button-quiet" id="show-js-button" type="button">View JavaScript</button>
+            <button class="button button-quiet" id="show-ast-button" type="button">View AST</button>
+            <span class="execution-status" id="execution-status" role="status">Ready for compiler foundation</span>
+          </div>
+
+          <div class="output-grid">
+            <section class="panel console-panel" data-panel="console" aria-labelledby="console-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="console-title">Output</h2>
+                  <p>Program and compiler messages</p>
+                </div>
+                <button class="collapse-button" type="button" aria-label="Collapse output console" aria-expanded="true" data-collapse="console">−</button>
+              </div>
+              <div class="console" id="console" role="log" aria-live="polite" aria-label="Output console"></div>
+            </section>
+
+            <section class="panel input-panel" data-panel="input" aria-labelledby="input-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="input-title">Program input</h2>
+                  <p>Used by Scanner in a later phase</p>
+                </div>
+                <button class="collapse-button" type="button" aria-label="Collapse program input" aria-expanded="true" data-collapse="input">−</button>
+              </div>
+              <div class="panel-body input-content">
+                <label for="program-input">Input queue</label>
+                <textarea id="program-input" rows="3" placeholder="Enter values here, one value or line at a time."></textarea>
+                <div class="input-actions">
+                  <button class="button" id="send-input-button" type="button">Send input</button>
+                  <button class="button button-quiet" id="clear-input-button" type="button">Clear</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel diagnostics-panel" data-panel="diagnostics" aria-labelledby="diagnostics-title">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="diagnostics-title">Diagnostics</h2>
+                  <p id="diagnostic-summary">No diagnostics</p>
+                </div>
+                <button class="collapse-button" type="button" aria-label="Collapse diagnostics" aria-expanded="true" data-collapse="diagnostics">−</button>
+              </div>
+              <div class="panel-body" id="diagnostics-list">
+                <p class="empty-state">Checks will appear here after the parser is implemented in Phase 2.</p>
+              </div>
+            </section>
+
+            <section class="panel inspect-panel" data-panel="inspect" aria-labelledby="inspect-title">
+              <div class="panel-heading">
+                <div class="inspector-tabs" role="tablist" aria-label="Compiler inspector">
+                  <button id="javascript-tab" class="inspector-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="javascript-panel">JavaScript</button>
+                  <button id="ast-tab" class="inspector-tab" type="button" role="tab" aria-selected="false" aria-controls="ast-panel">AST</button>
+                </div>
+                <button class="collapse-button" type="button" aria-label="Collapse compiler inspector" aria-expanded="true" data-collapse="inspect">−</button>
+              </div>
+              <div class="panel-body inspector-content">
+                <div id="javascript-panel" role="tabpanel" aria-labelledby="javascript-tab">
+                  <p class="empty-state">Generated JavaScript will be shown here after a successful translation in Phase 3.</p>
+                </div>
+                <div id="ast-panel" role="tabpanel" aria-labelledby="ast-tab" hidden>
+                  <p class="empty-state">The parsed abstract syntax tree will be shown here after Phase 2.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="find-dialog" class="dialog">
+      <form method="dialog" class="dialog-card" id="find-form">
+        <div class="dialog-heading">
+          <h2>Find and replace</h2>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close find and replace">×</button>
+        </div>
+        <label for="find-text">Find</label>
+        <input id="find-text" type="search" autocomplete="off" />
+        <label for="replace-text">Replace with</label>
+        <input id="replace-text" type="text" autocomplete="off" />
+        <p class="find-count" id="find-count" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button class="button" id="find-next-button" type="button">Find next</button>
+          <button class="button button-primary" id="replace-button" type="button">Replace next</button>
+          <button class="button button-quiet" id="replace-all-button" type="button">Replace all</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="help-dialog" class="dialog">
+      <div class="dialog-card help-card">
+        <div class="dialog-heading">
+          <h2>JavaLab — Phase 1</h2>
+          <button class="icon-button" id="close-help-button" type="button" aria-label="Close help">×</button>
+        </div>
+        <p>This foundation provides an editable Java workspace, syntax highlighting, console, input queue, responsive panels, and source-session saving.</p>
+        <p>The custom lexer, parser, compiler, and execution runtime have not been added yet. Run and Check accurately report that limitation; no code is simulated or executed.</p>
+        <p>Use <kbd>Ctrl</kbd> + <kbd>S</kbd> to save this browser session, <kbd>Tab</kbd> to indent, and <kbd>Ctrl</kbd> + <kbd>F</kbd> to find or replace text.</p>
+      </div>
+    </dialog>
+
+    <aside class="settings-popover is-hidden" id="settings-popover" aria-label="Editor settings">
+      <h2>Settings</h2>
+      <label class="checkbox-label"><input id="wrap-lines-setting" type="checkbox" /> Wrap editor lines</label>
+      <label class="checkbox-label"><input id="restore-session-setting" type="checkbox" checked /> Restore last browser session</label>
+    </aside>
+
+    <template id="console-entry-template">
+      <div class="console-entry">
+        <time></time><span class="console-label"></span><span class="console-message"></span>
+      </div>
+    </template>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
+

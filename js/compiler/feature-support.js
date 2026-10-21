@@ -1,0 +1,27 @@
+export const FEATURE_SUPPORT = Object.freeze({
+  version: "0.3.0",
+  phase: 3,
+  features: Object.freeze({
+    lexicalTokens: "supported",
+    compilationUnits: "supported",
+    classes: "supported",
+    fieldsAndMethods: "supported",
+    statements: "supported-subset",
+    expressions: "supported-subset",
+    typeChecking: "supported-subset",
+    integerArithmetic: "supported",
+    strings: "supported-subset",
+    arrays: "supported-subset",
+    inheritance: "parsed-and-translated",
+    exceptions: "parsed-and-translated",
+    methodOverloading: "unsupported",
+    annotations: "unsupported",
+    generics: "unsupported",
+    lambdas: "unsupported",
+    semanticAnalysis: "supported-subset",
+    translation: "supported-subset",
+    execution: "sandboxed-iframe-subset",
+    scannerInput: "planned-phase-4",
+  }),
+});
+

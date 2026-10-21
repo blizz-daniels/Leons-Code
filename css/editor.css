@@ -1,0 +1,22 @@
+.editor-panel { min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 68px); background: var(--code-bg); }
+.editor-titlebar { background: var(--surface); }
+.file-tab { display: flex; gap: 6px; align-items: center; min-height: 28px; padding: 0 4px; color: var(--text); font-size: .8rem; font-weight: 600; }
+.editor-tools { display: flex; gap: 10px; align-items: center; }
+.cursor-position { color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: .69rem; white-space: nowrap; }
+.editor-wrap { position: relative; flex: 1; min-height: 340px; overflow: hidden; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 14px; line-height: 1.55; tab-size: 4; background: var(--code-bg); }
+.syntax-layer, .editor-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 14px 14px 32px 59px; overflow: auto; border: 0; tab-size: 4; white-space: pre; overflow-wrap: normal; }
+.syntax-layer { color: var(--text); pointer-events: none; }
+.syntax-layer code { font: inherit; }
+.editor-input { z-index: 2; display: block; resize: none; color: transparent; caret-color: var(--text); background: transparent; outline: none; -webkit-text-fill-color: transparent; }
+.editor-input::selection { background: rgb(104 168 255 / 32%); }
+.line-numbers { position: absolute; z-index: 3; inset: 0 auto 0 0; width: 49px; padding: 14px 8px 32px 0; overflow: hidden; color: #71819a; text-align: right; line-height: 1.55; pointer-events: none; background: var(--code-bg); border-right: 1px solid color-mix(in srgb, var(--border) 65%, transparent); user-select: none; }
+.editor-statusbar { display: flex; align-items: center; justify-content: space-between; min-height: 27px; padding: 0 10px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); font-size: .69rem; }
+.editor-wrap.wrap-lines .syntax-layer, .editor-wrap.wrap-lines .editor-input { white-space: pre-wrap; overflow-wrap: break-word; }
+.token-comment { color: #71819a; font-style: italic; }
+.token-string, .token-char { color: #d9b56d; }
+.token-keyword { color: #c49bf5; }
+.token-type { color: #72c7ef; }
+.token-number { color: #f2a875; }
+.token-boolean, .token-null { color: #ec8ab0; }
+.token-annotation { color: #6fd5b1; }
+
