@@ -1,6 +1,6 @@
 const PROJECTS_KEY = "javalab.projects.v1";
 
-export function createLocalProjectStore(storage = globalThis.localStorage) {
+export function createLocalProjectStore(storage = browserStorage()) {
   const read = () => {
     try {
       const value = JSON.parse(storage.getItem(PROJECTS_KEY) || "[]");
@@ -22,8 +22,22 @@ export function createLocalProjectStore(storage = globalThis.localStorage) {
       if (!write(projects)) throw new Error("Browser storage is unavailable or full.");
       return saved;
     },
+
     remove(id) { return write(read().filter((project) => project.id !== id)); },
   };
+}
+
+
+function browserStorage() {
+  try {
+    return globalThis.localStorage || unavailableStorage();
+  } catch {
+    return unavailableStorage();
+  }
+}
+
+function unavailableStorage() {
+  return { getItem: () => null, setItem: () => { throw new Error("Browser storage is unavailable."); } };
 }
 
 function normalize(project) {

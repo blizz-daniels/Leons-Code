@@ -30,8 +30,8 @@ const elements = {
   restoreSession: document.querySelector("#restore-session-setting"),
 };
 
-const savedSettings = safeJsonParse(localStorage.getItem(SETTINGS_KEY), {});
-const savedSession = savedSettings.restoreSession === false ? null : safeJsonParse(localStorage.getItem(SESSION_KEY));
+const savedSettings = readStoredJson(SETTINGS_KEY, {});
+const savedSession = savedSettings.restoreSession === false ? null : readStoredJson(SESSION_KEY, null);
 const projectStore = createLocalProjectStore();
 let currentProjectId = savedSession?.projectId || null;
 let state = createEditorState(savedSession?.editor);
@@ -97,7 +97,7 @@ function persistSession() {
     editor.state = savedState;
     elements.explorerFilename.textContent = state.filename;
     elements.editorFilename.textContent = state.filename;
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ projectId: currentProjectId, projectName, editor: { source: state.source, filename: state.filename } }));
+    writeStoredJson(SESSION_KEY, { projectId: currentProjectId, projectName, editor: { source: state.source, filename: state.filename } });
     updateDirtyState(false);
     output.write("Saved this project locally in this browser.");
   } catch (error) { output.write(error.message || "Could not save this project locally.", "error"); }
@@ -156,11 +156,11 @@ function applySettings(settings) {
 }
 
 function persistSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+  writeStoredJson(SETTINGS_KEY, {
     theme: elements.theme.value,
     wrapLines: elements.wrapLines.checked,
     restoreSession: elements.restoreSession.checked,
-  }));
+  });
 }
 
 document.querySelector("#save-project-button").addEventListener("click", persistSession);
@@ -316,3 +316,24 @@ initializeLearningTools({
   compileSource: checkSource,
   output,
 });
+
+window.__javaLabStarted = true;
+document.querySelector("#startup-notice").hidden = true;
+
+function readStoredJson(key, fallback) {
+  try {
+    return safeJsonParse(globalThis.localStorage.getItem(key), fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredJson(key, value) {
+  try {
+    globalThis.localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    output.write("Browser storage is unavailable. Your current work will not be restored automatically.", "warning");
+    return false;
+  }
+}

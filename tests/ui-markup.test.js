@@ -11,5 +11,8 @@ test("top-bar actions are separate buttons and editor text remains visible", asy
   const saveIndex = page.indexOf('id="save-project-button"');
   assert.ok(examplesIndex >= 0 && examplesIndex < saveIndex);
   assert.match(editorStyles, /\.editor-input \{[^}]*color: var\(--text\)/);
+  assert.match(page, /id="startup-notice"/);
+  assert.match(page, /JavaLab did not start/);
+  assert.match(page, /<noscript>/);
   assert.doesNotMatch(editorStyles, /-webkit-text-fill-color: transparent/);
 });

@@ -27,3 +27,9 @@ test("local project store saves, lists, and removes browser projects", () => {
   assert.equal(store.list().length, 0);
   assert.equal(safeFilename("hello world"), "hello-world.java");
 });
+
+test("local project storage failure does not expose saved project data", () => {
+  const store = createLocalProjectStore({ getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } });
+  assert.deepEqual(store.list(), []);
+  assert.throws(() => store.save({ id: "blocked", name: "Blocked", filename: "Main.java", source: "" }), /storage is unavailable/);
+});
