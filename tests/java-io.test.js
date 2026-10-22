@@ -15,3 +15,10 @@ test("Scanner reports Java-like input mismatches", async () => {
   const scanner = new JavaScanner(async () => "not-a-number");
   await assert.rejects(scanner.nextInt(), /InputMismatchException/);
 });
+
+test("Scanner nextInt leaves the line separator for a following nextLine", async () => {
+  const scanner = new JavaScanner(async () => "7\nAda\n");
+  assert.equal(await scanner.nextInt(), 7);
+  assert.equal(await scanner.nextLine(), "");
+  assert.equal(await scanner.nextLine(), "Ada");
+});

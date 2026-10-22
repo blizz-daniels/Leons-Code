@@ -9,13 +9,13 @@ The project currently provides:
 - A responsive Java workspace with editor, console, session saving, syntax highlighting, and compiler inspectors.
 - A custom lexer, parser, AST, source diagnostics, semantic analysis, JavaScript translator, and generated-code view.
 - A hardened isolated iframe execution engine with cancellation, bounded source/input/output/array resources, time limits, and validated session messages.
-- Interactive `Scanner` input through the program-input panel, typed arrays, selected `String`/`Math` calls, and exception handling.
+- Interactive `Scanner` input inside the console, including sequential prompts, empty-line submission, typed arrays, selected `String`/`Math` calls, and exception handling.
 - Fifteen verified starter examples plus browser-local save, open, rename, delete, import, export, and generated-JavaScript download workflows.
 - A dependency-free Node test suite that covers editor behavior, compiler stages, runtime behavior, and end-to-end Java programs.
 - A documented learning subset rather than a full Java VM or JDK.
 - A GitHub Pages deployment workflow and documented execution-boundary limitations.
 
-Run compiles the supported subset and executes it in the isolated sandbox. Check shows diagnostics, AST data, and the generated JavaScript.
+Run compiles the supported subset and executes it in the isolated sandbox. When `Scanner` needs a value, JavaLab pauses computation and shows an inline console field; press Enter or select **Submit** to continue from the suspended call. The Stop button cancels a pending prompt. Check shows diagnostics, AST data, and the generated JavaScript.
 
 ## Run locally
 

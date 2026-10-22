@@ -56,3 +56,25 @@ test("end-to-end pipeline reads Scanner input and uses String and Math helpers",
   }`, ["7 ada lovelace\n"]);
   assert.equal(output, "ADA LOVELACE: 10\n");
 });
+
+test("runtime excludes Scanner wait time from the translated loop budget", async () => {
+  const result = compile(`import java.util.Scanner;
+  public class Main {
+    public static void main(String[] args) {
+      Scanner scanner = new Scanner(System.in);
+      String name = scanner.nextLine();
+      for (int index = 0; index < 1; index++) {
+        System.out.println("Hello, " + name);
+      }
+    }
+  }`);
+  assert.equal(result.status, "compiled", result.diagnostics.map((item) => item.message).join("\n"));
+  const output = [];
+  const runtime = createJavaRuntime({
+    deadline: Date.now() + 30,
+    onOutput: (entry) => output.push(entry.text),
+    requestInput: async () => new Promise((resolve) => setTimeout(() => resolve("Ada\n"), 80)),
+  });
+  await vm.runInNewContext(result.generatedJavaScript, { JavaRuntime: runtime }, { timeout: 1000 });
+  assert.equal(output.join(""), "Hello, Ada\n");
+});

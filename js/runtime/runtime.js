@@ -5,6 +5,13 @@ export const MAX_ARRAY_ELEMENTS = 100_000;
 
 export function createJavaRuntime({ onOutput = () => {}, requestInput = async () => null, deadline = Date.now() + 3000, args = [], maxOutput = 10_000 } = {}) {
   let outputSize = 0;
+  let computationDeadline = deadline;
+  const requestJavaInput = async (mode) => {
+    const pausedAt = Date.now();
+    const value = await requestInput(mode);
+    computationDeadline += Math.max(0, Date.now() - pausedAt);
+    return value;
+  };
   const emit = (kind, values) => {
     const text = values.map(javaString).join("");
     outputSize += text.length;
@@ -28,14 +35,14 @@ export function createJavaRuntime({ onOutput = () => {}, requestInput = async ()
     stringSubstring,
     stringUpper: (value) => String(value).toUpperCase(),
     stringLower: (value) => String(value).toLowerCase(),
-    createScanner: () => new JavaScanner(requestInput),
+    createScanner: () => new JavaScanner(requestJavaInput),
     scannerCall: async (scanner, method) => {
       if (!(scanner instanceof JavaScanner) || typeof scanner[method] !== "function") throw new Error(`No supported Scanner method named '${method}'.`);
       return scanner[method]();
     },
     math: createMathRuntime(),
     checkExecution: () => {
-      if (Date.now() > deadline) throw new Error("Execution timed out after the configured limit.");
+      if (Date.now() > computationDeadline) throw new Error("Execution timed out after the configured limit.");
     },
     unsupported: (message) => { throw new Error(message); },
   };

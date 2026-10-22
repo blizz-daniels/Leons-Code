@@ -14,7 +14,7 @@ test("top-bar actions are separate buttons and editor text remains visible", asy
   assert.match(page, /id="startup-notice"/);
   assert.match(page, /JavaLab did not start/);
   assert.match(page, /__javaLabStartupError/);
-  assert.match(page, /app\.js\?v=0\.6\.3/);
+  assert.match(page, /app\.js\?v=0\.6\.4/);
   assert.match(page, /<noscript>/);
   assert.doesNotMatch(editorStyles, /-webkit-text-fill-color: transparent/);
 });

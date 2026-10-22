@@ -16,9 +16,10 @@ export class ExecutionEngine {
     window.addEventListener("message", this.handleMessage);
   }
 
-  run({ code, metadata, timeoutMs = DEFAULT_TIMEOUT_MS, args = [], input = "" }) {
+  run({ code, metadata, timeoutMs = DEFAULT_TIMEOUT_MS, inputTimeoutMs = 0, args = [], input = "" }) {
     this.stop("replaced");
     const executionTimeout = normalizeTimeout(timeoutMs);
+    const inputTimeout = normalizeInputTimeout(inputTimeoutMs);
     const sessionId = crypto.randomUUID();
     const iframe = document.createElement("iframe");
     iframe.className = "execution-sandbox";
@@ -27,14 +28,11 @@ export class ExecutionEngine {
     iframe.referrerPolicy = "no-referrer";
     iframe.setAttribute("aria-hidden", "true");
     const initialInput = normalizeInput(input);
-    const session = { sessionId, iframe, metadata, timer: null, completed: false, pendingInput: null, queuedInput: initialInput ? [initialInput] : [], outputSize: 0 };
+    const session = { sessionId, iframe, metadata, timer: null, timerStartedAt: null, inputTimer: null, remainingMs: executionTimeout, inputTimeoutMs: inputTimeout, completed: false, pendingInput: null, queuedInput: initialInput ? [initialInput] : [], outputSize: 0 };
     this.active = session;
-    session.timer = window.setTimeout(() => {
-      if (this.active?.sessionId !== sessionId || session.completed) return;
-      this.finish(session, "timeout", { message: `Execution stopped after ${executionTimeout} ms.` });
-    }, executionTimeout + 150);
     iframe.srcdoc = sandboxDocument({ sessionId, code, timeoutMs: executionTimeout, args });
     document.body.append(iframe);
+    this.armComputationTimer(session);
     this.onMessage({ type: "started", sessionId, metadata });
     return sessionId;
   }
@@ -76,11 +74,13 @@ export class ExecutionEngine {
     }
     if (message.type === "input-request") {
       if (session.pendingInput) return;
+      this.pauseComputationTimer(session);
       if (session.queuedInput.length) {
         session.pendingInput = message;
         this.deliverInput(session, session.queuedInput.shift());
       } else {
         session.pendingInput = message;
+        this.armInputTimer(session);
         this.onMessage(message);
       }
       return;
@@ -92,8 +92,48 @@ export class ExecutionEngine {
     const request = session.pendingInput;
     if (!request || session.completed) return false;
     session.pendingInput = null;
+    this.clearInputTimer(session);
     session.iframe.contentWindow.postMessage({ channel: CHANNEL, sessionId: session.sessionId, type: "input-response", requestId: request.requestId, value: value === null ? null : String(value) }, "*");
+    this.armComputationTimer(session);
     return true;
+  }
+
+  armComputationTimer(session) {
+    if (session.completed || session.pendingInput || session.timer) return;
+    if (session.remainingMs <= 0) {
+      this.finish(session, "timeout", { message: "Execution timed out after the configured computation limit." });
+      return;
+    }
+    session.timerStartedAt = Date.now();
+    const timer = window.setTimeout(() => {
+      if (session.timer !== timer || this.active?.sessionId !== session.sessionId || session.completed || session.pendingInput) return;
+      session.timer = null;
+      session.remainingMs = 0;
+      this.finish(session, "timeout", { message: "Execution timed out after the configured computation limit." });
+    }, session.remainingMs);
+    session.timer = timer;
+  }
+
+  pauseComputationTimer(session) {
+    if (!session.timer) return;
+    session.remainingMs = Math.max(0, session.remainingMs - Math.max(0, Date.now() - session.timerStartedAt));
+    if (session.timer) window.clearTimeout(session.timer);
+    session.timer = null;
+    session.timerStartedAt = null;
+  }
+
+  armInputTimer(session) {
+    if (!session.inputTimeoutMs) return;
+    session.inputTimer = window.setTimeout(() => {
+      if (this.active?.sessionId !== session.sessionId || session.completed || !session.pendingInput) return;
+      this.finish(session, "timeout", { message: `Input was not received after ${session.inputTimeoutMs} ms.` });
+    }, session.inputTimeoutMs);
+  }
+
+  clearInputTimer(session) {
+    if (!session.inputTimer) return;
+    window.clearTimeout(session.inputTimer);
+    session.inputTimer = null;
   }
 
   finish(session, type, detail) {
@@ -101,7 +141,9 @@ export class ExecutionEngine {
     session.completed = true;
     session.pendingInput = null;
     session.queuedInput = [];
-    window.clearTimeout(session.timer);
+    if (session.timer) window.clearTimeout(session.timer);
+    this.clearInputTimer(session);
+    session.timer = null;
     session.iframe.remove();
     if (this.active?.sessionId === session.sessionId) this.active = null;
     this.onMessage({ type, sessionId: session.sessionId, ...detail });
@@ -136,18 +178,20 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
   const send = (type, detail = {}) => parent.postMessage({ channel: "${CHANNEL}", sessionId: config.sessionId, type, ...detail }, "*");
   let nextInputRequestId = 0;
   let pendingInput = null;
+  let computationDeadline = config.deadline;
   const requestInput = (mode) => new Promise((resolve) => {
     if (pendingInput) throw new Error("Only one Scanner input request can be active at a time.");
     const requestId = "input-" + (++nextInputRequestId);
-    pendingInput = { requestId, resolve };
+    pendingInput = { requestId, resolve, pausedAt: Date.now() };
     send("input-request", { requestId, mode });
   });
   window.addEventListener("message", (event) => {
     const message = event.data;
     if (event.source !== parent || !message || message.channel !== "${CHANNEL}" || message.sessionId !== config.sessionId || message.type !== "input-response") return;
     if (!pendingInput || message.requestId !== pendingInput.requestId) return;
-    const { resolve } = pendingInput;
+    const { resolve, pausedAt } = pendingInput;
     pendingInput = null;
+    computationDeadline += Math.max(0, Date.now() - pausedAt);
     resolve(message.value === null ? null : String(message.value));
   });
   const safeErrorMessage = (value) => String(value?.message || value || "Unknown runtime error").slice(0, ${MAX_ERROR_MESSAGE_CHARS});
@@ -223,7 +267,7 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
     createScanner: () => new JavaScanner(requestInput),
     scannerCall: async (scanner, method) => { if (!(scanner instanceof JavaScanner) || typeof scanner[method] !== "function") throw new Error("No supported Scanner method named '" + method + "'."); return scanner[method](); },
     math: { E: Math.E, PI: Math.PI, abs: Math.abs, ceil: Math.ceil, cos: Math.cos, floor: Math.floor, max: Math.max, min: Math.min, pow: Math.pow, random: Math.random, round: (value) => Math.floor(Number(value) + 0.5), sin: Math.sin, sqrt: Math.sqrt },
-    checkExecution: () => { if (Date.now() > config.deadline) throw new Error("Execution timed out after the configured limit."); },
+    checkExecution: () => { if (Date.now() > computationDeadline) throw new Error("Execution timed out after the configured limit."); },
     unsupported: (message) => { throw new Error(message); },
   };
   Object.freeze(javaRuntime.math);
@@ -248,6 +292,12 @@ parent.postMessage({ channel: "${CHANNEL}", sessionId: ${sessionLiteral}, type: 
 function normalizeTimeout(timeoutMs) {
   const value = Number(timeoutMs);
   return Number.isFinite(value) ? Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Math.floor(value))) : DEFAULT_TIMEOUT_MS;
+}
+
+function normalizeInputTimeout(timeoutMs) {
+  const value = Number(timeoutMs);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(3_600_000, Math.floor(value));
 }
 
 function normalizeInput(value) {

@@ -51,18 +51,26 @@ const execution = new ExecutionEngine({
     } else if (message.type === "output") {
       output.write(message.text, message.kind === "err" ? "error" : "output");
     } else if (message.type === "input-request") {
-      elements.executionStatus.textContent = "Waiting for input";
-      output.write(`Scanner is waiting for a ${message.mode || "token"}.`, "system");
-      elements.programInput.focus();
+      const mode = message.mode || "token";
+      elements.executionStatus.textContent = "Waiting for Scanner input";
+      output.write(`Scanner is waiting for a ${mode}. Computation is paused.`, "system");
+      output.requestInput({
+        mode,
+        onSubmit(value) {
+          return submitScannerInput(value, { appendLineBreak: true, record: false });
+        },
+      });
     } else if (message.type === "completed") {
+      output.clearInputPrompt();
       document.querySelector("#run-button").disabled = false;
       document.querySelector("#stop-button").disabled = true;
       elements.executionStatus.textContent = "Completed";
       output.write("Execution completed.", "system");
     } else if (["runtime-error", "timeout", "stopped"].includes(message.type)) {
+      output.clearInputPrompt();
       document.querySelector("#run-button").disabled = false;
       document.querySelector("#stop-button").disabled = true;
-      elements.executionStatus.textContent = message.type === "timeout" ? "Execution Stopped" : "Runtime Error";
+      elements.executionStatus.textContent = message.type === "timeout" ? "Execution Timed Out" : message.type === "stopped" ? "Stopped" : "Runtime Error";
       output.write(message.message || "Execution stopped.", message.type === "stopped" ? "warning" : "error");
     }
   },
@@ -140,6 +148,18 @@ function runSource() {
   execution.run({ code: result.generatedJavaScript, metadata: result.runtimeMetadata, args: [], input: queuedInput });
 }
 
+function submitScannerInput(value, { appendLineBreak = false, record = true } = {}) {
+  const submitted = appendLineBreak ? `${value}\n` : value;
+  const delivery = execution.provideInput(submitted);
+  if (delivery === "too-large") { output.write("Program input is limited to 65,536 characters.", "error"); return false; }
+  if (delivery === "queue-full") { output.write("The input queue is full. Wait for Scanner to request a value or reset the queue.", "warning"); return false; }
+  if (!delivery) { output.write("Start a program that uses Scanner before sending input.", "warning"); return false; }
+  if (record) output.recordInput(value);
+  elements.executionStatus.textContent = "Running";
+  if (delivery === "queued") output.write("Input queued for Scanner.", "system");
+  return true;
+}
+
 function compilerUnavailable(action) {
   return action === "Run" ? runSource() : checkSource();
 }
@@ -187,13 +207,8 @@ document.querySelector("#clear-console-button").addEventListener("click", () => 
 document.querySelector("#reset-input-button").addEventListener("click", () => { execution.clearQueuedInput(); clearInputQueue(elements.programInput); });
 document.querySelector("#clear-input-button").addEventListener("click", () => clearInputQueue(elements.programInput));
 document.querySelector("#send-input-button").addEventListener("click", () => {
-  const delivery = execution.provideInput(elements.programInput.value);
-  if (delivery === "too-large") { output.write("Program input is limited to 65,536 characters.", "error"); return; }
-  if (delivery === "queue-full") { output.write("The input queue is full. Wait for Scanner to request a value or reset the queue.", "warning"); return; }
-  if (!delivery) { output.write("Start a program that uses Scanner before sending input.", "warning"); return; }
+  if (!submitScannerInput(elements.programInput.value)) return;
   clearInputQueue(elements.programInput);
-  elements.executionStatus.textContent = "Running";
-  output.write(delivery === "sent" ? "Input sent to Scanner." : "Input queued for Scanner.", "system");
 });
 document.querySelector("#show-js-button").addEventListener("click", () => activateInspector("javascript"));
 document.querySelector("#show-ast-button").addEventListener("click", () => activateInspector("ast"));
