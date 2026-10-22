@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compile, MAX_SOURCE_LENGTH } from "../js/compiler/compiler.js";
+import { compile, MAX_SOURCE_LENGTH, validateGeneratedJavaScript } from "../js/compiler/compiler.js";
 
 test("compiler facade returns tokens, AST, diagnostics, and feature support", () => {
   const result = compile("public class Main {}");
@@ -23,5 +23,12 @@ test("compiler rejects oversized source before lexing", () => {
   assert.equal(result.stage, "input");
   assert.equal(result.generatedJavaScript, null);
   assert.equal(result.diagnostics[0].code, "COMP_SOURCE_TOO_LARGE");
+});
+
+test("generated JavaScript must pass syntax validation before it is runnable", () => {
+  assert.equal(validateGeneratedJavaScript("(async () => { return 1; })()"), null);
+  const diagnostic = validateGeneratedJavaScript("(async () => { const = 1; })()");
+  assert.equal(diagnostic.code, "TRANSLATE_INVALID_JAVASCRIPT");
+  assert.match(diagnostic.message, /syntax validation/i);
 });
 

@@ -22,7 +22,11 @@ export function compile(source) {
     semanticResult = analyze(parsedResult.ast);
     diagnostics = [...diagnostics, ...semanticResult.diagnostics];
   }
-  if (!hasErrors(diagnostics)) translationResult = translate(parsedResult.ast);
+  if (!hasErrors(diagnostics)) {
+    translationResult = translate(parsedResult.ast);
+    const syntaxDiagnostic = validateGeneratedJavaScript(translationResult.code);
+    if (syntaxDiagnostic) diagnostics.push(syntaxDiagnostic);
+  }
   const errors = hasErrors(diagnostics);
   const unsupportedFeatures = diagnostics
     .filter((diagnostic) => diagnostic.code.startsWith("PARSE_UNSUPPORTED"))
@@ -41,6 +45,26 @@ export function compile(source) {
     symbols: semanticResult.symbols,
     featureSupport: FEATURE_SUPPORT,
   };
+}
+
+export function validateGeneratedJavaScript(source) {
+  try {
+    // The translation is an async IIFE, so parsing it as a function body checks
+    // exactly the syntax the isolated execution script will receive.
+    new Function(String(source));
+    return null;
+  } catch (error) {
+    const line = Number.isInteger(error?.lineNumber) && error.lineNumber > 0 ? error.lineNumber : 1;
+    const column = Number.isInteger(error?.columnNumber) && error.columnNumber > 0 ? error.columnNumber : 1;
+    const point = { line, column, offset: 0 };
+    return createDiagnostic({
+      phase: "translation",
+      code: "TRANSLATE_INVALID_JAVASCRIPT",
+      message: `Generated JavaScript failed syntax validation: ${String(error?.message || error)}`,
+      start: point,
+      end: point,
+    });
+  }
 }
 
 function inputFailure(code, message) {

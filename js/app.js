@@ -72,6 +72,8 @@ const execution = new ExecutionEngine({
       document.querySelector("#stop-button").disabled = true;
       elements.executionStatus.textContent = message.type === "timeout" ? "Execution Timed Out" : message.type === "stopped" ? "Stopped" : "Runtime Error";
       output.write(message.message || "Execution stopped.", message.type === "stopped" ? "warning" : "error");
+      if (message.line) output.write(`Execution source: line ${message.line}${message.column ? `, column ${message.column}` : ""}.`, "error");
+      if (message.stack) output.write(message.stack, "error");
     }
   },
 });

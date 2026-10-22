@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { sandboxDocument } from "../js/runtime/execution-engine.js";
+import { compile } from "../js/compiler/compiler.js";
 
 function createSandbox({ code, timeoutMs = 1000 }) {
   const html = sandboxDocument({
@@ -87,4 +88,32 @@ test("sandbox execution guard terminates an actual infinite loop", () => {
   sandbox.run({ timeout: 500 });
   const error = sandbox.messages.find((message) => message.type === "runtime-error");
   assert.match(error?.message || "", /timed out/);
+});
+
+test("translated while-loop comparisons remain valid inside the execution wrapper", async () => {
+  const result = compile(`public class Main {
+public static void main(String[] args) {
+int a = 0;
+while (a < 20) {
+a = a + 2;
+System.out.println(a);
+}
+}
+}`);
+  assert.equal(result.status, "compiled", result.diagnostics.map((item) => item.message).join("\n"));
+  const sandbox = createSandbox({ code: result.generatedJavaScript });
+  sandbox.run();
+  await flush();
+  assert.equal(sandbox.messages.filter((message) => message.type === "output").map((message) => message.text).join(""), "2\n4\n6\n8\n10\n12\n14\n16\n18\n20\n");
+  assert.equal(sandbox.messages.map((message) => message.type).at(-1), "completed");
+});
+
+test("sandbox error messages preserve stack traces and source locations", () => {
+  const sandbox = createSandbox({ code: "(async () => {})()" });
+  sandbox.listeners.error({ error: new Error("broken execution"), lineno: 12, colno: 8 });
+  const error = sandbox.messages.find((message) => message.type === "runtime-error");
+  assert.equal(error.message, "broken execution");
+  assert.match(error.stack, /broken execution/);
+  assert.equal(error.line, 12);
+  assert.equal(error.column, 8);
 });

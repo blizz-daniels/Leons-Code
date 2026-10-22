@@ -4,6 +4,7 @@ const MIN_TIMEOUT_MS = 100;
 const MAX_TIMEOUT_MS = 10_000;
 const MAX_OUTPUT_CHARS = 10_000;
 const MAX_ERROR_MESSAGE_CHARS = 1_000;
+const MAX_ERROR_STACK_CHARS = 8_000;
 const MAX_INPUT_CHARS = 65_536;
 const MAX_ARRAY_ELEMENTS = 100_000;
 const MAX_QUEUED_INPUTS = 32;
@@ -160,7 +161,9 @@ function isExecutionMessage(value) {
   if (value.type === "completed") return true;
   if (value.type === "output") return (value.kind === "out" || value.kind === "err") && typeof value.text === "string" && value.text.length <= MAX_OUTPUT_CHARS;
   if (value.type === "input-request") return typeof value.requestId === "string" && /^input-\d+$/.test(value.requestId) && (value.mode === "token" || value.mode === "line");
-  return value.type === "runtime-error" && typeof value.message === "string" && value.message.length <= MAX_ERROR_MESSAGE_CHARS;
+  if (value.type !== "runtime-error" || typeof value.message !== "string" || value.message.length > MAX_ERROR_MESSAGE_CHARS) return false;
+  if (value.stack !== undefined && (typeof value.stack !== "string" || value.stack.length > MAX_ERROR_STACK_CHARS)) return false;
+  return (value.line === undefined || Number.isInteger(value.line)) && (value.column === undefined || Number.isInteger(value.column));
 }
 
 export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
@@ -168,7 +171,9 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
   const safeSessionId = String(sessionId);
   const configuration = safeInlineJson({ sessionId: safeSessionId, deadline: Date.now() + executionTimeout, args: safeArgs(args) });
   const sessionLiteral = safeInlineJson(safeSessionId);
-  const safeCode = String(code ?? "").replace(/</g, "\\u003c");
+  // Only shield an HTML closing-script sequence. Escaping every '<' produces an
+  // invalid JavaScript token when the generated program uses comparison operators.
+  const safeCode = String(code ?? "").replace(/<\/script/gi, "<\\/script");
   return `<!doctype html>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'none'; media-src 'none'; object-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; worker-src 'none'">
@@ -195,6 +200,13 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
     resolve(message.value === null ? null : String(message.value));
   });
   const safeErrorMessage = (value) => String(value?.message || value || "Unknown runtime error").slice(0, ${MAX_ERROR_MESSAGE_CHARS});
+  const safeErrorDetails = (value, event = {}) => {
+    const detail = { message: safeErrorMessage(value) };
+    if (typeof value?.stack === "string") detail.stack = value.stack.slice(0, ${MAX_ERROR_STACK_CHARS});
+    if (Number.isInteger(event.lineno) && event.lineno > 0) detail.line = event.lineno;
+    if (Number.isInteger(event.colno) && event.colno > 0) detail.column = event.colno;
+    return detail;
+  };
   let outputSize = 0;
   const MAX_ARRAY_ELEMENTS = ${MAX_ARRAY_ELEMENTS};
   const javaString = (value) => value === null ? "null" : value === true ? "true" : value === false ? "false" : String(value);
@@ -273,8 +285,9 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
   Object.freeze(javaRuntime.math);
   Object.freeze(javaRuntime);
   Object.defineProperty(window, "JavaRuntime", { value: javaRuntime, writable: false, configurable: false });
-  window.addEventListener("error", (event) => send("runtime-error", { message: safeErrorMessage(event.error || event.message) }));
-  window.addEventListener("unhandledrejection", (event) => send("runtime-error", { message: safeErrorMessage(event.reason) }));
+  window.__javaLabErrorDetails = safeErrorDetails;
+  window.addEventListener("error", (event) => send("runtime-error", safeErrorDetails(event.error || event.message, event)));
+  window.addEventListener("unhandledrejection", (event) => send("runtime-error", safeErrorDetails(event.reason)));
 })();
 </script>
 <script>
@@ -283,7 +296,7 @@ try {
 await (${safeCode});
 parent.postMessage({ channel: "${CHANNEL}", sessionId: ${sessionLiteral}, type: "completed" }, "*");
 } catch (error) {
-parent.postMessage({ channel: "${CHANNEL}", sessionId: ${sessionLiteral}, type: "runtime-error", message: String(error?.message || error).slice(0, ${MAX_ERROR_MESSAGE_CHARS}) }, "*");
+parent.postMessage({ channel: "${CHANNEL}", sessionId: ${sessionLiteral}, type: "runtime-error", ...(window.__javaLabErrorDetails ? window.__javaLabErrorDetails(error) : { message: String(error?.message || error).slice(0, ${MAX_ERROR_MESSAGE_CHARS}) }) }, "*");
 }
 })();
 </script>`;
