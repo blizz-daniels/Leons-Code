@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Leon’s Code sandboxed HTML, CSS, and JavaScript practice lab.">
+  <title>Web Lab — Leon’s Code</title>
+  <link rel="stylesheet" href="assets/platform.css">
+  <style>body{background:#eef5fc}.web-lab-header{max-width:1180px;margin:auto;padding:1.3rem;display:flex;justify-content:space-between;gap:1rem;align-items:center}.web-lab{max-width:1180px;margin:0 auto 2rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;padding:0 1.3rem}.web-editor,.web-preview{background:#fff;border:1px solid #dce6f1;border-radius:14px;overflow:hidden}.web-editor{padding:1rem}.web-editor label{display:block;font-size:.8rem;font-weight:800;color:#486078;margin:.75rem 0 .3rem}.web-editor textarea{width:100%;min-height:130px;resize:vertical;border:1px solid #cad9e8;border-radius:8px;padding:.7rem;background:#0d1f34;color:#e6f1ff;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.82rem}.web-preview{display:grid;grid-template-rows:auto 1fr}.web-preview h2{font-size:.92rem;margin:0;padding:1rem;border-bottom:1px solid #dce6f1}.web-preview iframe{min-height:500px;width:100%;border:0;background:#fff}.web-actions{display:flex;gap:.7rem;margin-top:1rem}@media(max-width:780px){.web-lab{grid-template-columns:1fr}.web-preview iframe{min-height:330px}}</style>
+</head>
+<body>
+  <header class="web-lab-header"><a class="wordmark" href="index.php"><span class="wordmark-mark">&lt;/&gt;</span><span>Leon’s <strong>Code</strong></span></a><a class="button button-outline" href="index.php?page=web-lab">Back to Web Lab</a></header>
+  <main class="web-lab"><section class="web-editor"><p class="eyebrow">Build a profile card</p><h1>Web playground</h1><p>Change the starter, then refresh the isolated preview.</p><label for="html-source">HTML</label><textarea id="html-source"><main class="card"><p class="label">HELLO, BUILDER</p><h1>My first web card</h1><p>I can make this page responsive.</p><button id="hello">Try me</button></main></textarea><label for="css-source">CSS</label><textarea id="css-source">body { font-family: system-ui, sans-serif; padding: 2rem; background: #eef5ff; }
+.card { max-width: 420px; margin: auto; padding: 2rem; border-radius: 18px; background: white; box-shadow: 0 16px 40px #13335a22; }
+.label { color: #2677e8; font-weight: 800; font-size: .75rem; letter-spacing: .12em; }
+button { padding: .65rem 1rem; border: 0; border-radius: 8px; background: #2677e8; color: white; font-weight: 700; }</textarea><label for="js-source">JavaScript</label><textarea id="js-source">document.querySelector('#hello').addEventListener('click', () => {
+  document.querySelector('#hello').textContent = 'Nice work!';
+});</textarea><div class="web-actions"><button class="button" id="run-preview" type="button">Refresh preview</button><button class="button button-outline" id="reset-preview" type="button">Reset starter</button></div></section><section class="web-preview"><h2>Sandboxed preview</h2><iframe id="preview" sandbox="allow-scripts" title="Learner web code preview"></iframe></section></main>
+  <script src="assets/web-lab.js"></script>
+</body>
+</html>

@@ -34,8 +34,14 @@ const savedSettings = readStoredJson(SETTINGS_KEY, {}) || {};
 const savedSession = savedSettings.restoreSession === false ? null : readStoredJson(SESSION_KEY, null);
 const projectStore = createLocalProjectStore();
 let currentProjectId = savedSession?.projectId || null;
-let state = createEditorState(savedSession?.editor);
-let projectName = savedSession?.projectName || "My Java Project";
+const requestedStarter = new URLSearchParams(window.location.search).get("starter");
+const starterSource = {
+  "java-hello": `public class Main {\n  public static void main(String[] args) {\n    System.out.println("Hello, Leon's Code!");\n  }\n}\n`,
+  "java-arithmetic": `public class Main {\n  public static void main(String[] args) {\n    int whole = 17 / 3;\n    double precise = 17.0 / 3;\n    System.out.println(whole);\n    System.out.println(precise);\n  }\n}\n`,
+  "java-input": `import java.util.Scanner;\npublic class Main {\n  public static void main(String[] args) {\n    Scanner scanner = new Scanner(System.in);\n    System.out.print("Your name: ");\n    String name = scanner.nextLine();\n    System.out.println("Welcome, " + name + "!");\n  }\n}\n`,
+}[requestedStarter];
+let state = createEditorState(starterSource ? { source: starterSource } : savedSession?.editor);
+let projectName = starterSource ? "Guided Java exercise" : savedSession?.projectName || "My Java Project";
 elements.projectName.textContent = projectName;
 elements.explorerFilename.textContent = state.filename;
 elements.editorFilename.textContent = state.filename;
@@ -90,7 +96,7 @@ const editor = new JavaEditor({
 });
 
 applySettings(savedSettings);
-output.write("JavaLab Phase 6 ready. Run supports the documented Java subset in a bounded, isolated sandbox.");
+output.write(starterSource ? "Guided exercise loaded. Run supports the documented Java subset in a bounded, isolated sandbox." : "JavaLab Phase 6 ready. Run supports the documented Java subset in a bounded, isolated sandbox.");
 
 function updateDirtyState(dirty = isDirty(state)) {
   elements.editorDirtyDot.classList.toggle("is-hidden", !dirty);

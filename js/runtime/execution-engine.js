@@ -219,7 +219,7 @@ export function sandboxDocument({ sessionId, code, timeoutMs, args }) {
       return toInt(Math.trunc(Number(left) / Number(right)));
     }
     if (operator === "%" && Number(right) === 0) throw new Error("ArithmeticException: / by zero");
-    const value = ({ "+": () => Number(left) + Number(right), "-": () => Number(left) - Number(right), "*": () => Number(left) * Number(right), "%": () => Number(left) % Number(right) })[operator]?.();
+    const value = ({ "+": () => Number(left) + Number(right), "-": () => Number(left) - Number(right), "*": () => Number(left) * Number(right), "/": () => Number(left) / Number(right), "%": () => Number(left) % Number(right) })[operator]?.();
     if (value === undefined) throw new Error("Unsupported arithmetic operator: " + operator);
     return ["byte", "short", "int", "long", "char"].includes(type) ? toInt(value) : value;
   };

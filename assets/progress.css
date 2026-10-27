@@ -1,0 +1,14 @@
+.progress-bar {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin-top: .4rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #e9eef5;
+}
+
+.progress-bar::-webkit-progress-bar { background: #e9eef5; }
+.progress-bar::-webkit-progress-value { background: var(--teal); }
+.progress-bar::-moz-progress-bar { background: var(--teal); }

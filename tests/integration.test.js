@@ -37,6 +37,16 @@ test("end-to-end pipeline preserves integer arithmetic, loops, arrays, and metho
   assert.equal(output, "12\n");
 });
 
+test("end-to-end pipeline differentiates integer and floating-point division", async () => {
+  const { output } = await runJava(`public class Main {
+    public static void main(String[] args) {
+      System.out.println(7 / 2);
+      System.out.println(7.0 / 2);
+    }
+  }`);
+  assert.equal(output, "3\n3.5\n");
+});
+
 test("compilation errors prevent generated code from being returned", () => {
   const result = compile("class Main { static void main(String[] args) { int value = unknown; } }");
   assert.equal(result.status, "error");

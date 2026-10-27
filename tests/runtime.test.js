@@ -8,6 +8,11 @@ test("runtime implements Java-style integer division and overflow-sized int arit
   assert.throws(() => binary("/", 1, 0, "int"), /ArithmeticException/);
 });
 
+test("runtime keeps the fractional result for floating-point division", () => {
+  assert.equal(binary("/", 7, 2, "double"), 3.5);
+  assert.equal(binary("/", 7, 2, "float"), 3.5);
+});
+
 test("runtime converts strings and creates typed default arrays", () => {
   assert.equal(javaString(null), "null");
   assert.equal(javaString(false), "false");

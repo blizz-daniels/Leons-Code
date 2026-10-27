@@ -1,0 +1,1 @@
+<section class="not-found section-shell"><p class="eyebrow">404</p><h1>That page isn’t here.</h1><p>Try the course catalogue or return to the Leon’s Code home page.</p><a class="button" href="<?= route() ?>">Go home</a></section>

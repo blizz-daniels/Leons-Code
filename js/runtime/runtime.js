@@ -58,6 +58,7 @@ export function binary(operator, left, right, type = "int") {
     "+": () => Number(left) + Number(right),
     "-": () => Number(left) - Number(right),
     "*": () => Number(left) * Number(right),
+    "/": () => Number(left) / Number(right),
     "%": () => {
       if (Number(right) === 0) throw new Error("ArithmeticException: / by zero");
       return Number(left) % Number(right);
